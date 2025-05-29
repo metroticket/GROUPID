@@ -1,47 +1,46 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>群組ID編輯</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  h1 { margin-bottom: 20px; }
-  .radio-group { display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
-  .radio-item {
-    flex: 1 1 calc(33% - 10px);
-    box-sizing: border-box;
-  }
-  label {
-    cursor: pointer;
-  }
-  input[type="radio"] {
-    margin-right: 5px;
-  }
-  #groupIdDisplay {
-    background-color: #eee;
-    padding: 10px;
-    margin: 15px 0;
-    border-radius: 4px;
-    user-select: none;
-  }
-  input[type="text"] {
-    padding: 8px;
-    width: 300px;
-    margin-right: 10px;
-  }
-  button {
-    padding: 8px 15px;
-    font-size: 16px;
-  }
-  .warning {
-    color: red;
-    margin-top: 10px;
-  }
-</style>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>群組ID編輯</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 20px; }
+    .radio-group { display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
+    .radio-item {
+      flex: 1 1 calc(33% - 10px);
+      box-sizing: border-box;
+    }
+    label { cursor: pointer; }
+    input[type="radio"] { margin-right: 5px; }
+    #groupIdDisplay {
+      background-color: #eee;
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 4px;
+      user-select: none;
+    }
+    input[type="text"] {
+      padding: 8px;
+      width: 300px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 8px 15px;
+      font-size: 16px;
+    }
+    .warning {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
+
+<!-- 顯示使用者 ID -->
+<div><strong>你的LINE使用者ID：</strong> <span id="userIdDisplay">載入中...</span></div>
 
 <h1>群組ID編輯</h1>
 
@@ -60,18 +59,19 @@
 </div>
 
 <script>
-  // 你的 Google Sheet CSV 連結（改成你的sheet csv）
   const sheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
 
   let data = []; // 存放sheet資料
   let selectedUnit = null;
   let selectedGroupId = null;
+  let liffUserId = null;
 
   const radioContainer = document.getElementById("radioContainer");
   const groupIdDisplay = document.getElementById("groupIdDisplay");
   const newGroupIdInput = document.getElementById("newGroupId");
   const submitBtn = document.getElementById("submitBtn");
   const warningDiv = document.getElementById("warning");
+  const userIdDisplay = document.getElementById("userIdDisplay");
 
   // 解析CSV成JSON
   function parseCSV(text) {
@@ -80,29 +80,15 @@
     return lines.slice(1).map(line => {
       const values = line.split(",");
       const obj = {};
-      headers.forEach((h,i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
+      headers.forEach((h, i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
       return obj;
     });
-  }
-
-  // 初始化 LIFF
-  let liffUserId = null;
-  async function initLIFF() {
-    // TODO: 把 YOUR_LIFF_ID 換成你自己的 LINE LIFF ID
-    await liff.init({ liffId: "https://liff.line.me/2007495371-LrlQvZ8Y" });
-    if (liff.isLoggedIn()) {
-      const profile = await liff.getProfile();
-      liffUserId = profile.userId;
-      console.log("LIFF User ID:", liffUserId);
-    } else {
-      liff.login();
-    }
   }
 
   // 建立 radio 按鈕，每行3個
   function renderRadios() {
     radioContainer.innerHTML = "";
-    data.forEach((item, idx) => {
+    data.forEach(item => {
       const div = document.createElement("div");
       div.className = "radio-item";
       div.innerHTML = `<label><input type="radio" name="unit" value="${item["單位名稱"]}"> ${item["單位名稱"]}</label>`;
@@ -122,22 +108,22 @@
     });
   }
 
-  // 送出按鈕點擊
+  // 送出按鈕事件
   submitBtn.addEventListener("click", async () => {
     warningDiv.style.display = "none";
+
     if (!selectedUnit) {
       warningDiv.textContent = "請先選擇單位名稱";
       warningDiv.style.display = "block";
       return;
     }
+
     const newId = newGroupIdInput.value.trim();
     if (!newId) {
       warningDiv.textContent = "修改ID不能為空";
       warningDiv.style.display = "block";
       return;
     }
-    // 準備要發送的訊息
-    const msg = `使用者ID: ${liffUserId || "未知"}\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
 
     if (!liffUserId) {
       warningDiv.textContent = "LINE未登入，無法發送訊息";
@@ -145,20 +131,41 @@
       return;
     }
 
+    const msg = `使用者ID: ${liffUserId}\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
+
     try {
-      await liff.sendMessages([{
-        type: 'text',
-        text: msg
-      }]);
+      await liff.sendMessages([
+        { type: 'text', text: "你的群組id是：" },
+        { type: 'text', text: msg }
+      ]);
       alert("訊息已送出！");
       newGroupIdInput.value = "";
-    } catch(e) {
+    } catch (e) {
       alert("發送訊息失敗，請稍後再試");
       console.error(e);
     }
   });
 
-  // 主程式：抓CSV，渲染
+  // 初始化 LIFF
+  async function initLIFF() {
+    try {
+      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // ⚠️ 這裡是 LIFF ID，不是網址！
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const profile = await liff.getProfile();
+      liffUserId = profile.userId;
+      userIdDisplay.textContent = liffUserId;
+    } catch (e) {
+      console.error("LIFF 初始化失敗", e);
+      userIdDisplay.textContent = "載入失敗";
+    }
+  }
+
+  // 載入資料並初始化
   fetch(sheetCSVUrl)
     .then(res => res.text())
     .then(text => {
