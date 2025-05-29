@@ -89,7 +89,7 @@
   let liffUserId = null;
   async function initLIFF() {
     // TODO: 把 YOUR_LIFF_ID 換成你自己的 LINE LIFF ID
-    await liff.init({ liffId: "YOUR_LIFF_ID" });
+    await liff.init({ liffId: "https://liff.line.me/2007495371-LrlQvZ8Y" });
     if (liff.isLoggedIn()) {
       const profile = await liff.getProfile();
       liffUserId = profile.userId;
