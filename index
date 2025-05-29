@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>群組ID編輯</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  h1 { margin-bottom: 20px; }
+  .radio-group { display: flex; flex-wrap: wrap; gap: 10px; max-width: 600px; }
+  .radio-item {
+    flex: 1 1 calc(33% - 10px);
+    box-sizing: border-box;
+  }
+  label {
+    cursor: pointer;
+  }
+  input[type="radio"] {
+    margin-right: 5px;
+  }
+  #groupIdDisplay {
+    background-color: #eee;
+    padding: 10px;
+    margin: 15px 0;
+    border-radius: 4px;
+    user-select: none;
+  }
+  input[type="text"] {
+    padding: 8px;
+    width: 300px;
+    margin-right: 10px;
+  }
+  button {
+    padding: 8px 15px;
+    font-size: 16px;
+  }
+  .warning {
+    color: red;
+    margin-top: 10px;
+  }
+</style>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+<h1>群組ID編輯</h1>
+
+<div id="radioContainer" class="radio-group">載入中...</div>
+
+<div>
+  <div>群組id</div>
+  <div id="groupIdDisplay">請選擇單位名稱</div>
+</div>
+
+<div style="margin-top: 20px;">
+  <label for="newGroupId">修改ID</label><br />
+  <input type="text" id="newGroupId" placeholder="請輸入新群組ID" />
+  <button id="submitBtn">送出</button>
+  <div id="warning" class="warning" style="display:none;"></div>
+</div>
+
+<script>
+  // 你的 Google Sheet CSV 連結（改成你的sheet csv）
+  const sheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
+
+  let data = []; // 存放sheet資料
+  let selectedUnit = null;
+  let selectedGroupId = null;
+
+  const radioContainer = document.getElementById("radioContainer");
+  const groupIdDisplay = document.getElementById("groupIdDisplay");
+  const newGroupIdInput = document.getElementById("newGroupId");
+  const submitBtn = document.getElementById("submitBtn");
+  const warningDiv = document.getElementById("warning");
+
+  // 解析CSV成JSON
+  function parseCSV(text) {
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",");
+    return lines.slice(1).map(line => {
+      const values = line.split(",");
+      const obj = {};
+      headers.forEach((h,i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
+      return obj;
+    });
+  }
+
+  // 初始化 LIFF
+  let liffUserId = null;
+  async function initLIFF() {
+    // TODO: 把 YOUR_LIFF_ID 換成你自己的 LINE LIFF ID
+    await liff.init({ liffId: "YOUR_LIFF_ID" });
+    if (liff.isLoggedIn()) {
+      const profile = await liff.getProfile();
+      liffUserId = profile.userId;
+      console.log("LIFF User ID:", liffUserId);
+    } else {
+      liff.login();
+    }
+  }
+
+  // 建立 radio 按鈕，每行3個
+  function renderRadios() {
+    radioContainer.innerHTML = "";
+    data.forEach((item, idx) => {
+      const div = document.createElement("div");
+      div.className = "radio-item";
+      div.innerHTML = `<label><input type="radio" name="unit" value="${item["單位名稱"]}"> ${item["單位名稱"]}</label>`;
+      radioContainer.appendChild(div);
+    });
+
+    // 綁定事件
+    radioContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        selectedUnit = radio.value;
+        const selectedObj = data.find(d => d["單位名稱"] === selectedUnit);
+        selectedGroupId = selectedObj ? selectedObj["群組id"] : "";
+        groupIdDisplay.textContent = selectedGroupId || "無資料";
+        newGroupIdInput.value = "";
+        warningDiv.style.display = "none";
+      });
+    });
+  }
+
+  // 送出按鈕點擊
+  submitBtn.addEventListener("click", async () => {
+    warningDiv.style.display = "none";
+    if (!selectedUnit) {
+      warningDiv.textContent = "請先選擇單位名稱";
+      warningDiv.style.display = "block";
+      return;
+    }
+    const newId = newGroupIdInput.value.trim();
+    if (!newId) {
+      warningDiv.textContent = "修改ID不能為空";
+      warningDiv.style.display = "block";
+      return;
+    }
+    // 準備要發送的訊息
+    const msg = `使用者ID: ${liffUserId || "未知"}\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
+
+    if (!liffUserId) {
+      warningDiv.textContent = "LINE未登入，無法發送訊息";
+      warningDiv.style.display = "block";
+      return;
+    }
+
+    try {
+      await liff.sendMessages([{
+        type: 'text',
+        text: msg
+      }]);
+      alert("訊息已送出！");
+      newGroupIdInput.value = "";
+    } catch(e) {
+      alert("發送訊息失敗，請稍後再試");
+      console.error(e);
+    }
+  });
+
+  // 主程式：抓CSV，渲染
+  fetch(sheetCSVUrl)
+    .then(res => res.text())
+    .then(text => {
+      data = parseCSV(text);
+      renderRadios();
+    })
+    .catch(err => {
+      radioContainer.textContent = "載入資料失敗";
+      console.error(err);
+    });
+
+  // 啟動 LIFF
+  initLIFF();
+</script>
+</body>
+</html>
