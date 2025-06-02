@@ -37,10 +37,10 @@
     input[type="radio"] {
       margin-right: 5px;
     }
-    #groupIdSection {
+    #groupIdSection, #contactSection {
       margin-bottom: 20px;
     }
-    #groupIdDisplay {
+    #groupIdDisplay, #contactDisplay {
       background-color: #eee;
       padding: 12px;
       margin-top: 8px;
@@ -80,7 +80,6 @@
 </head>
 <body>
 
-<!-- 使用者ID（隱藏，但存在） -->
 <div id="userIdDisplay" class="hidden"></div>
 
 <h1>群組ID編輯</h1>
@@ -92,17 +91,27 @@
   <div id="groupIdDisplay">請選擇單位名稱</div>
 </div>
 
+<div id="contactSection">
+  <div><strong>緊急聯絡人1</strong></div>
+  <div id="contactDisplay">請選擇單位名稱</div>
+</div>
+
 <div>
   <label for="newGroupId"><strong>修改ID</strong></label><br />
   <input type="text" id="newGroupId" placeholder="請輸入新群組ID" />
-  <br />
-  <button id="submitBtn">送出</button>
-  <div id="warning" class="warning" style="display:none;"></div>
 </div>
 
+<div>
+  <label for="newContact"><strong>修改緊急聯絡人1</strong></label><br />
+  <input type="text" id="newContact" placeholder="請輸入緊急聯絡人資訊" />
+</div>
+
+<button id="submitBtn">送出</button>
+<div id="warning" class="warning" style="display:none;"></div>
+
 <script>
-  const sheetCSVUrl1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016"; // 群組ID
-  const sheetCSVUrl2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=1852137465"; // 權限表
+  const sheetCSVUrl1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
+  const sheetCSVUrl2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=1852137465";
 
   let liffUserId = null;
   let userUnit = null;
@@ -112,7 +121,9 @@
 
   const radioContainer = document.getElementById("radioContainer");
   const groupIdDisplay = document.getElementById("groupIdDisplay");
+  const contactDisplay = document.getElementById("contactDisplay");
   const newGroupIdInput = document.getElementById("newGroupId");
+  const newContactInput = document.getElementById("newContact");
   const submitBtn = document.getElementById("submitBtn");
   const warningDiv = document.getElementById("warning");
   const userIdDisplay = document.getElementById("userIdDisplay");
@@ -148,7 +159,9 @@
         const selectedObj = groupData.find(d => d["單位名稱"] === selectedUnit);
         selectedGroupId = selectedObj ? selectedObj["群組id"] : "";
         groupIdDisplay.textContent = selectedGroupId || "無資料";
+        contactDisplay.textContent = selectedObj["緊急聯絡人1"] || "無資料";
         newGroupIdInput.value = "";
+        newContactInput.value = "";
         warningDiv.style.display = "none";
       });
     });
@@ -164,8 +177,10 @@
     }
 
     const newId = newGroupIdInput.value.trim();
-    if (!newId) {
-      warningDiv.textContent = "修改ID不能為空";
+    const newContact = newContactInput.value.trim();
+
+    if (!newId && !newContact) {
+      warningDiv.textContent = "請至少修改一項資料";
       warningDiv.style.display = "block";
       return;
     }
@@ -176,7 +191,7 @@
       return;
     }
 
-    const msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
+    const msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId || "未變更"}\n修改後緊急聯絡人1: ${newContact || "未變更"}`;
 
     try {
       await liff.sendMessages([{ type: 'text', text: msg }]);
@@ -212,7 +227,7 @@
 
       userUnit = userRow["單位"];
 
-      // 群組ID資料表（過濾單位）
+      // 群組清單表
       const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
       const allGroupData = parseCSV(groupText);
       groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
