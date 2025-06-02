@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>群組管理</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    a {
+      display: block;
+      margin: 10px 0;
+      font-size: 18px;
+      color: #2c3e50;
+    }
+  </style>
 </head>
 <body>
   <div id="app">載入中...</div>
@@ -19,43 +31,47 @@
 
     async function initLIFFAndLoadPage() {
       try {
-        await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // <-- 換成你的 LIFF ID
+        await liff.init({ liffId: "2007495371-LrlQvZ8Y" });
 
         if (!liff.isLoggedIn()) {
           liff.login();
-          return; // 登入後會自動重新整理頁面
+          return;
         }
 
         const profile = await liff.getProfile();
         const liffUserId = profile.userId;
 
-        // 存到 sessionStorage，讓子頁面可用
+        // 儲存 userId，供子頁面透過 sessionStorage 使用
         sessionStorage.setItem("liffUserId", liffUserId);
 
-        // 取得 page 參數，決定載入哪個頁面
         const page = getQueryParam("page");
 
         if (page === "1") {
-          // 載入編輯頁面
           const res = await fetch("edit.html");
           const html = await res.text();
           app.innerHTML = html;
+          // 手動觸發內嵌頁面初始化（edit.html 內會呼叫 initLIFFAndLoadData）
+          setTimeout(() => {
+            if (typeof initLIFFAndLoadData === 'function') initLIFFAndLoadData();
+          }, 100);
         } else if (page === "2") {
-          // 載入只讀頁面
           const res = await fetch("readonly.html");
           const html = await res.text();
           app.innerHTML = html;
+          setTimeout(() => {
+            if (typeof initReadonlyPage === 'function') initReadonlyPage();
+          }, 100);
         } else {
-          // 預設頁面選單
           app.innerHTML = `
             <h2>請選擇頁面</h2>
-            <p><a href="?page=1">編輯頁面</a></p>
-            <p><a href="?page=2">只讀頁面</a></p>
+            <a href="?page=1">🔧 編輯頁面</a>
+            <a href="?page=2">👁️ 只讀頁面</a>
           `;
         }
+
       } catch (error) {
-        console.error("LIFF初始化失敗", error);
-        app.innerHTML = "LIFF初始化失敗，請稍後再試。";
+        console.error("LIFF 初始化失敗", error);
+        app.innerHTML = "<p>⚠️ LIFF 初始化失敗，請稍後再試。</p>";
       }
     }
 
