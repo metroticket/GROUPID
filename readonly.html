@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>群組資訊查詢</title>
+  <title>群組ID只讀</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,72 +12,164 @@
       color: #333;
     }
     h1 {
+      margin-bottom: 25px;
       font-size: 24px;
       color: #2c3e50;
+    }
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 700px;
       margin-bottom: 20px;
     }
-    .unit-info {
+    .radio-item {
+      flex: 1 1 calc(33% - 12px);
       background-color: #fff;
       border: 1px solid #ccc;
       border-radius: 6px;
-      padding: 15px;
-      margin-bottom: 15px;
+      padding: 10px;
       box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05);
     }
-    .unit-info strong {
-      color: #555;
+    label {
+      cursor: pointer;
+    }
+    input[type="radio"] {
+      margin-right: 5px;
+    }
+    #groupIdSection, #contactSection1, #contactSection2 {
+      margin-bottom: 20px;
+    }
+    #groupIdDisplay, #contactDisplay1, #contactDisplay2 {
+      background-color: #eee;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      user-select: text;
+    }
+    .warning {
+      color: red;
+      margin-top: 10px;
+      font-weight: bold;
     }
   </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h1>群組資訊查詢</h1>
-  <div id="unitContainer">載入中...</div>
 
-  <script>
-    const sheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
-    const container = document.getElementById("unitContainer");
+<h1>群組ID只讀</h1>
 
-    function parseCSV(text) {
-      const lines = text.trim().split("\n");
-      const headers = lines[0].split(",");
-      return lines.slice(1).map(line => {
-        const values = line.split(",");
-        const obj = {};
-        headers.forEach((h, i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
-        return obj;
+<div id="radioContainer" class="radio-group">載入中...</div>
+
+<div id="groupIdSection">
+  <div><strong>群組ID</strong></div>
+  <div id="groupIdDisplay">請選擇單位名稱</div>
+</div>
+
+<div id="contactSection1">
+  <div><strong>緊急聯絡人1</strong></div>
+  <div id="contactDisplay1">請選擇單位名稱</div>
+</div>
+
+<div id="contactSection2">
+  <div><strong>緊急聯絡人2</strong></div>
+  <div id="contactDisplay2">請選擇單位名稱</div>
+</div>
+
+<div id="warning" class="warning" style="display:none;"></div>
+
+<script>
+  const sheetCSVUrl1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
+  const sheetCSVUrl2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=1852137465";
+
+  let liffUserId = null;
+  let userUnit = null;
+  let groupData = [];
+  let selectedUnit = null;
+
+  const radioContainer = document.getElementById("radioContainer");
+  const groupIdDisplay = document.getElementById("groupIdDisplay");
+  const contactDisplay1 = document.getElementById("contactDisplay1");
+  const contactDisplay2 = document.getElementById("contactDisplay2");
+  const warningDiv = document.getElementById("warning");
+
+  function parseCSV(text) {
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",");
+    return lines.slice(1).map(line => {
+      const values = line.split(",");
+      const obj = {};
+      headers.forEach((h, i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
+      return obj;
+    });
+  }
+
+  function renderRadios() {
+    radioContainer.innerHTML = "";
+    if (groupData.length === 0) {
+      radioContainer.innerHTML = "您無權限查看任何單位。";
+      return;
+    }
+
+    groupData.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "radio-item";
+      div.innerHTML = `<label><input type="radio" name="unit" value="${item["單位名稱"]}"> ${item["單位名稱"]}</label>`;
+      radioContainer.appendChild(div);
+    });
+
+    radioContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        selectedUnit = radio.value;
+        const selectedObj = groupData.find(d => d["單位名稱"] === selectedUnit);
+
+        groupIdDisplay.textContent = selectedObj ? selectedObj["群組id"] : "無資料";
+        contactDisplay1.textContent = selectedObj ? selectedObj["緊急聯絡人1"] : "無資料";
+        contactDisplay2.textContent = selectedObj ? selectedObj["緊急聯絡人2"] : "無資料";
+
+        warningDiv.style.display = "none";
       });
-    }
+    });
+  }
 
-    async function loadData() {
-      try {
-        const text = await fetch(sheetCSVUrl).then(res => res.text());
-        const data = parseCSV(text);
-
-        if (data.length === 0) {
-          container.textContent = "目前無資料。";
-          return;
-        }
-
-        container.innerHTML = "";
-        data.forEach(item => {
-          const div = document.createElement("div");
-          div.className = "unit-info";
-          div.innerHTML = `
-            <div><strong>單位名稱：</strong>${item["單位名稱"]}</div>
-            <div><strong>群組ID：</strong>${item["群組id"] || "未填寫"}</div>
-            <div><strong>緊急聯絡人1：</strong>${item["緊急聯絡人1"] || "未填寫"}</div>
-            <div><strong>緊急聯絡人2：</strong>${item["緊急聯絡人2"] || "未填寫"}</div>
-          `;
-          container.appendChild(div);
-        });
-
-      } catch (e) {
-        console.error("載入資料發生錯誤", e);
-        container.textContent = "載入資料失敗，請稍後再試。";
+  async function initLIFFAndLoadData() {
+    try {
+      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // 替換成你的 LIFF ID
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
       }
-    }
 
-    loadData();
-  </script>
+      const profile = await liff.getProfile();
+      liffUserId = profile.userId;
+
+      // 權限表（找單位）
+      const authText = await fetch(sheetCSVUrl2).then(res => res.text());
+      const authData = parseCSV(authText);
+      const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
+
+      if (!userRow) {
+        radioContainer.innerHTML = "您無權限使用此功能";
+        return;
+      }
+
+      userUnit = userRow["單位"];
+
+      // 群組清單表
+      const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
+      const allGroupData = parseCSV(groupText);
+      groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
+
+      renderRadios();
+    } catch (e) {
+      console.error("初始化或資料載入錯誤", e);
+      radioContainer.innerHTML = "載入失敗，請重新整理。";
+    }
+  }
+
+  initLIFFAndLoadData();
+</script>
+
 </body>
 </html>
