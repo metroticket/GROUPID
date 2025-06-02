@@ -187,6 +187,12 @@
 submitBtn.addEventListener("click", async () => {
   warningDiv.style.display = "none";
 
+  if (!liffUserId) {
+    warningDiv.textContent = "LINE未登入，無法發送訊息";
+    warningDiv.style.display = "block";
+    return;
+  }
+
   if (!selectedUnit) {
     warningDiv.textContent = "請先選擇單位名稱";
     warningDiv.style.display = "block";
@@ -197,21 +203,13 @@ submitBtn.addEventListener("click", async () => {
   const newContact1 = newContact1Input.value.trim();
   const newContact2 = newContact2Input.value.trim();
 
-  if (!newId && !newContact1 && !newContact2) {
-    warningDiv.textContent = "請至少修改一項資料";
+  if (!newId) {
+    warningDiv.textContent = "群組ID必須填寫";
     warningDiv.style.display = "block";
     return;
   }
 
-  if (!liffUserId) {
-    warningDiv.textContent = "LINE未登入，無法發送訊息";
-    warningDiv.style.display = "block";
-    return;
-  }
-
-  // 動態組合訊息文字，只放有填寫的欄位
-  let msg = `功能:修改群組\n單位名稱: ${selectedUnit}`;
-  if (newId) msg += `\n修改後群組ID: ${newId}`;
+  let msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
   if (newContact1) msg += `\n修改後緊急聯絡人1: ${newContact1}`;
   if (newContact2) msg += `\n修改後緊急聯絡人2: ${newContact2}`;
 
