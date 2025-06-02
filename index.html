@@ -5,7 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>群組ID編輯</title>
   <style>
-    /* 保留原有的 CSS 樣式 */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 25px;
+      font-size: 24px;
+      color: #2c3e50;
+    }
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 700px;
+      margin-bottom: 20px;
+    }
+    .radio-item {
+      flex: 1 1 calc(33% - 12px);
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    label {
+      cursor: pointer;
+    }
+    input[type="radio"] {
+      margin-right: 5px;
+    }
+    #groupIdSection {
+      margin-bottom: 20px;
+    }
+    #groupIdDisplay {
+      background-color: #eee;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    input[type="text"] {
+      padding: 10px;
+      width: 90%;
+      max-width: 400px;
+      margin-top: 5px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 15px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #27ae60;
+    }
+    .warning {
+      color: red;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -32,14 +101,14 @@
 </div>
 
 <script>
-  const sheetCSVUrl1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
-  const sheetCSVUrl2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=1852137465";
+  const sheetCSVUrl1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016"; // 群組ID
+  const sheetCSVUrl2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=1852137465"; // 權限表
 
-  let data1 = [];
-  let data2 = [];
+  let liffUserId = null;
+  let userUnit = null;
+  let groupData = [];
   let selectedUnit = null;
   let selectedGroupId = null;
-  let liffUserId = null;
 
   const radioContainer = document.getElementById("radioContainer");
   const groupIdDisplay = document.getElementById("groupIdDisplay");
@@ -61,7 +130,12 @@
 
   function renderRadios() {
     radioContainer.innerHTML = "";
-    data1.forEach(item => {
+    if (groupData.length === 0) {
+      radioContainer.innerHTML = "您無權限修改任何單位。";
+      return;
+    }
+
+    groupData.forEach(item => {
       const div = document.createElement("div");
       div.className = "radio-item";
       div.innerHTML = `<label><input type="radio" name="unit" value="${item["單位名稱"]}"> ${item["單位名稱"]}</label>`;
@@ -71,7 +145,7 @@
     radioContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
       radio.addEventListener("change", () => {
         selectedUnit = radio.value;
-        const selectedObj = data1.find(d => d["單位名稱"] === selectedUnit);
+        const selectedObj = groupData.find(d => d["單位名稱"] === selectedUnit);
         selectedGroupId = selectedObj ? selectedObj["群組id"] : "";
         groupIdDisplay.textContent = selectedGroupId || "無資料";
         newGroupIdInput.value = "";
@@ -105,9 +179,7 @@
     const msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
 
     try {
-      await liff.sendMessages([
-        { type: 'text', text: msg }
-      ]);
+      await liff.sendMessages([{ type: 'text', text: msg }]);
       liff.closeWindow();
     } catch (e) {
       warningDiv.textContent = "發送訊息失敗，請稍後再試";
@@ -116,30 +188,43 @@
     }
   });
 
-  async function initLIFF() {
+  async function initLIFFAndLoadData() {
     try {
-      await liff.init({ liffId: "2007495371-LrlQvZ8Y" });
+      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // 替換成你的 LIFF ID
       if (!liff.isLoggedIn()) {
         liff.login();
         return;
       }
+
       const profile = await liff.getProfile();
       liffUserId = profile.userId;
       userIdDisplay.textContent = liffUserId;
+
+      // 權限表（找單位）
+      const authText = await fetch(sheetCSVUrl2).then(res => res.text());
+      const authData = parseCSV(authText);
+      const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
+
+      if (!userRow) {
+        radioContainer.innerHTML = "您無權限使用此功能";
+        return;
+      }
+
+      userUnit = userRow["單位"];
+
+      // 群組ID資料表（過濾單位）
+      const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
+      const allGroupData = parseCSV(groupText);
+      groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
+
+      renderRadios();
     } catch (e) {
-      console.error("LIFF 初始化失敗", e);
-      userIdDisplay.textContent = "錯誤";
+      console.error("初始化或資料載入錯誤", e);
+      radioContainer.innerHTML = "載入失敗，請重新整理。";
     }
   }
 
-  fetch(sheetCSVUrl2)
-    .then(res => res.text())
-    .then(text => {
-      data2 = parseCSV(text);
-      const user = data2.find(d => d["USERID"] === liffUserId);
-      if (user) {
-        const unit = user["單位"];
-        data1 = parseCSV(text);
-        data1 = data1.filter(d => d["
-::contentReference[oaicite:18]{index=18}
- 
+  initLIFFAndLoadData();
+</script>
+</body>
+</html>
