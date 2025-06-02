@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>群組管理</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
   <div id="app">載入中...</div>
@@ -14,29 +15,51 @@
       return urlParams.get(name);
     }
 
-    const page = getQueryParam("page");
     const app = document.getElementById("app");
 
-    if (page === "1") {
-      // 讀取 編輯頁面
-      fetch("edit.html")
-        .then(res => res.text())
-        .then(html => app.innerHTML = html)
-        .catch(err => app.innerHTML = "載入編輯頁失敗");
-    } else if (page === "2") {
-      // 讀取 只讀頁面
-      fetch("readonly.html")
-        .then(res => res.text())
-        .then(html => app.innerHTML = html)
-        .catch(err => app.innerHTML = "載入只讀頁失敗");
-    } else {
-      // 預設提示
-      app.innerHTML = `
-        <h2>請選擇頁面</h2>
-        <p><a href="?page=1">編輯頁面</a></p>
-        <p><a href="?page=2">只讀頁面</a></p>
-      `;
+    async function initLIFFAndLoadPage() {
+      try {
+        await liff.init({ liffId: "2007495371-OyE4wj1d" }); // <-- 換成你的 LIFF ID
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return; // 登入後會自動重新整理頁面
+        }
+
+        const profile = await liff.getProfile();
+        const liffUserId = profile.userId;
+
+        // 存到 sessionStorage，讓子頁面可用
+        sessionStorage.setItem("liffUserId", liffUserId);
+
+        // 取得 page 參數，決定載入哪個頁面
+        const page = getQueryParam("page");
+
+        if (page === "1") {
+          // 載入編輯頁面
+          const res = await fetch("edit.html");
+          const html = await res.text();
+          app.innerHTML = html;
+        } else if (page === "2") {
+          // 載入只讀頁面
+          const res = await fetch("readonly.html");
+          const html = await res.text();
+          app.innerHTML = html;
+        } else {
+          // 預設頁面選單
+          app.innerHTML = `
+            <h2>請選擇頁面</h2>
+            <p><a href="?page=1">編輯頁面</a></p>
+            <p><a href="?page=2">只讀頁面</a></p>
+          `;
+        }
+      } catch (error) {
+        console.error("LIFF初始化失敗", error);
+        app.innerHTML = "LIFF初始化失敗，請稍後再試。";
+      }
     }
+
+    initLIFFAndLoadPage();
   </script>
 </body>
 </html>
