@@ -4,23 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>群組管理</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const page = urlParams.get("page");
+  <div id="app">載入中...</div>
 
-    if (page === "1") {
-      window.location.href = "edit.html";
-    } else if (page === "2") {
-      window.location.href = "readonly.html";
-    } else {
-      document.body.innerHTML = `
-        <h2>請選擇頁面</h2>
-        <p><a href="?page=1">編輯頁面</a></p>
-        <p><a href="?page=2">只讀頁面</a></p>
-      `;
+  <script>
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
     }
+
+    const app = document.getElementById("app");
+
+    const page = getQueryParam("page");
+
+    // ✅ 根據參數載入對應的 HTML 檔案
+    async function loadPageContent(page) {
+      let file = "";
+      if (page === "1") {
+        file = "edit.html";
+      } else if (page === "2") {
+        file = "readonly.html";
+      }
+
+      if (file) {
+        try {
+          const res = await fetch(file);
+          const html = await res.text();
+          app.innerHTML = html;
+        } catch (e) {
+          app.innerHTML = "載入頁面失敗，請稍後再試。";
+        }
+      } else {
+        app.innerHTML = `
+          <h2>請選擇頁面</h2>
+          <p><a href="?page=1">編輯頁面</a></p>
+          <p><a href="?page=2">只讀頁面</a></p>
+        `;
+      }
+    }
+
+    // ✅ 無需提前 init LIFF，因為會由子頁面（edit.html）處理
+    loadPageContent(page);
   </script>
 </body>
 </html>
