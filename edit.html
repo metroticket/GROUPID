@@ -83,7 +83,7 @@
 </head>
 <body>
 
-<div id="userIdDisplay" style="margin-bottom: 15px; font-weight: bold;"></div>
+<div id="userIdDisplay" class="hidden"></div>
 
 <h1>群組ID編輯</h1>
 
@@ -224,47 +224,41 @@ submitBtn.addEventListener("click", async () => {
 });
 
 
-async function initLIFFAndLoadData() {
-  try {
-    await liff.init({ liffId: "2007495371-LrlQvZ8Y" });
+  async function initLIFFAndLoadData() {
+    try {
+      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // 替換成你的 LIFF ID
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
 
-    if (!liff.isInClient()) {
-      radioContainer.innerHTML = "請從 LINE App 開啟此頁面";
-      return;
+      const profile = await liff.getProfile();
+      liffUserId = profile.userId;
+      userIdDisplay.textContent = liffUserId;
+
+      // 權限表（找單位）
+      const authText = await fetch(sheetCSVUrl2).then(res => res.text());
+      const authData = parseCSV(authText);
+      const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
+
+      if (!userRow) {
+        radioContainer.innerHTML = "您無權限使用此功能";
+        return;
+      }
+
+      userUnit = userRow["單位"];
+
+      // 群組清單表
+      const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
+      const allGroupData = parseCSV(groupText);
+      groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
+
+      renderRadios();
+    } catch (e) {
+      console.error("初始化或資料載入錯誤", e);
+      radioContainer.innerHTML = "載入失敗，請重新整理。";
     }
-
-    if (!liff.isLoggedIn()) {
-      radioContainer.innerHTML = "登入中，請稍後...";
-      liff.login();
-      return;
-    }
-
-    const profile = await liff.getProfile();
-    liffUserId = profile.userId;
-    userIdDisplay.textContent = liffUserId;
-
-    const authText = await fetch(sheetCSVUrl2).then(res => res.text());
-    const authData = parseCSV(authText);
-    const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
-
-    if (!userRow) {
-      radioContainer.innerHTML = "您無權限使用此功能";
-      return;
-    }
-
-    userUnit = userRow["單位"];
-
-    const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
-    const allGroupData = parseCSV(groupText);
-    groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
-
-    renderRadios();
-  } catch (e) {
-    console.error("初始化或資料載入錯誤", e);
-    radioContainer.innerHTML = "載入失敗，請重新整理。";
   }
-}
-
 
   initLIFFAndLoadData();
 </script>
