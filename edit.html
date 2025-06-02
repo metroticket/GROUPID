@@ -75,15 +75,13 @@
       margin-top: 10px;
       font-weight: bold;
     }
-    .hidden {
-      display: none;
-    }
   </style>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 
-<div id="userIdDisplay" class="hidden"></div>
+<!-- ✅ 顯示 USER ID，已加上醒目的樣式 -->
+<div id="userIdDisplay" style="margin-bottom: 20px; padding: 10px; background-color: #e0f0ff; color: #0066cc; border-left: 5px solid #3399ff; font-weight: bold;"></div>
 
 <h1>群組ID編輯</h1>
 
@@ -184,49 +182,48 @@
     });
   }
 
-submitBtn.addEventListener("click", async () => {
-  warningDiv.style.display = "none";
+  submitBtn.addEventListener("click", async () => {
+    warningDiv.style.display = "none";
 
-  if (!liffUserId) {
-    warningDiv.textContent = "LINE未登入，無法發送訊息";
-    warningDiv.style.display = "block";
-    return;
-  }
+    if (!liffUserId) {
+      warningDiv.textContent = "LINE未登入，無法發送訊息";
+      warningDiv.style.display = "block";
+      return;
+    }
 
-  if (!selectedUnit) {
-    warningDiv.textContent = "請先選擇單位名稱";
-    warningDiv.style.display = "block";
-    return;
-  }
+    if (!selectedUnit) {
+      warningDiv.textContent = "請先選擇單位名稱";
+      warningDiv.style.display = "block";
+      return;
+    }
 
-  const newId = newGroupIdInput.value.trim();
-  const newContact1 = newContact1Input.value.trim();
-  const newContact2 = newContact2Input.value.trim();
+    const newId = newGroupIdInput.value.trim();
+    const newContact1 = newContact1Input.value.trim();
+    const newContact2 = newContact2Input.value.trim();
 
-  if (!newId) {
-    warningDiv.textContent = "群組ID必須填寫";
-    warningDiv.style.display = "block";
-    return;
-  }
+    if (!newId) {
+      warningDiv.textContent = "群組ID必須填寫";
+      warningDiv.style.display = "block";
+      return;
+    }
 
-  let msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
-  if (newContact1) msg += `\n修改後緊急聯絡人1: ${newContact1}`;
-  if (newContact2) msg += `\n修改後緊急聯絡人2: ${newContact2}`;
+    let msg = `功能:修改群組\n單位名稱: ${selectedUnit}\n修改後群組ID: ${newId}`;
+    if (newContact1) msg += `\n修改後緊急聯絡人1: ${newContact1}`;
+    if (newContact2) msg += `\n修改後緊急聯絡人2: ${newContact2}`;
 
-  try {
-    await liff.sendMessages([{ type: 'text', text: msg }]);
-    liff.closeWindow();
-  } catch (e) {
-    warningDiv.textContent = "發送訊息失敗，請稍後再試";
-    warningDiv.style.display = "block";
-    console.error(e);
-  }
-});
-
+    try {
+      await liff.sendMessages([{ type: 'text', text: msg }]);
+      liff.closeWindow();
+    } catch (e) {
+      warningDiv.textContent = "發送訊息失敗，請稍後再試";
+      warningDiv.style.display = "block";
+      console.error(e);
+    }
+  });
 
   async function initLIFFAndLoadData() {
     try {
-      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // 替換成你的 LIFF ID
+      await liff.init({ liffId: "2007495371-LrlQvZ8Y" }); // 請替換為你的 LIFF ID
       if (!liff.isLoggedIn()) {
         liff.login();
         return;
@@ -234,9 +231,8 @@ submitBtn.addEventListener("click", async () => {
 
       const profile = await liff.getProfile();
       liffUserId = profile.userId;
-      userIdDisplay.textContent = liffUserId;
+      userIdDisplay.textContent = `目前登入的 USERID：${liffUserId}`;
 
-      // 權限表（找單位）
       const authText = await fetch(sheetCSVUrl2).then(res => res.text());
       const authData = parseCSV(authText);
       const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
@@ -248,7 +244,6 @@ submitBtn.addEventListener("click", async () => {
 
       userUnit = userRow["單位"];
 
-      // 群組清單表
       const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
       const allGroupData = parseCSV(groupText);
       groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
