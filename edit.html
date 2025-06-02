@@ -177,6 +177,9 @@
     radioContainer.innerHTML = "";
     if (groupData.length === 0) {
       radioContainer.innerHTML = "您無權限修改任何單位。";
+      groupIdDisplay.textContent = "請選擇單位名稱";
+      contactDisplay1.textContent = "請選擇單位名稱";
+      contactDisplay2.textContent = "請選擇單位名稱";
       return;
     }
 
@@ -235,6 +238,7 @@
 
     try {
       await liff.sendMessages([{ type: 'text', text: msg }]);
+      alert('訊息已發送成功，視窗將關閉。');
       liff.closeWindow();
     } catch (e) {
       warningDiv.textContent = "發送訊息失敗，請稍後再試";
@@ -264,6 +268,7 @@
       debugDiv.textContent += `\n取得 USER ID：${liffUserId}`;
       userIdDisplay.innerText = `目前登入的 USERID：${liffUserId}`;
 
+      // 取得授權資料
       const authText = await fetch(sheetCSVUrl2).then(res => res.text());
       debugDiv.textContent += '\n已取得授權資料';
 
@@ -273,12 +278,16 @@
       if (!userRow) {
         radioContainer.innerHTML = "您無權限使用此功能";
         debugDiv.textContent += '\n用戶無權限';
+        groupIdDisplay.textContent = "-";
+        contactDisplay1.textContent = "-";
+        contactDisplay2.textContent = "-";
         return;
       }
 
       userUnit = userRow["單位"];
       debugDiv.textContent += `\n用戶單位：${userUnit}`;
 
+      // 取得群組資料
       const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
       debugDiv.textContent += '\n已取得群組資料';
 
@@ -293,10 +302,13 @@
       console.error("初始化或資料載入錯誤", e);
       debugDiv.textContent += `\n錯誤：${e.message}`;
       radioContainer.innerHTML = "載入失敗，請重新整理。";
+      groupIdDisplay.textContent = "-";
+      contactDisplay1.textContent = "-";
+      contactDisplay2.textContent = "-";
     }
   }
 
-  initLIFFAndLoadData();
+  window.addEventListener('load', initLIFFAndLoadData);
 </script>
 </body>
 </html>
