@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>群組資訊查詢</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      font-size: 24px;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    .unit-info {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .unit-info strong {
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>群組資訊查詢</h1>
+  <div id="unitContainer">載入中...</div>
+
+  <script>
+    const sheetCSVUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKQouoZLUeafrmbJHwDKP1e8jIpqVT5I_kGkl4Iv77RXxOrtxOQ2ugvkn0OoT9wRQbvqRwVa0jsTY_/pub?output=csv&gid=2008332016";
+    const container = document.getElementById("unitContainer");
+
+    function parseCSV(text) {
+      const lines = text.trim().split("\n");
+      const headers = lines[0].split(",");
+      return lines.slice(1).map(line => {
+        const values = line.split(",");
+        const obj = {};
+        headers.forEach((h, i) => obj[h.trim()] = values[i] ? values[i].trim() : "");
+        return obj;
+      });
+    }
+
+    async function loadData() {
+      try {
+        const text = await fetch(sheetCSVUrl).then(res => res.text());
+        const data = parseCSV(text);
+
+        if (data.length === 0) {
+          container.textContent = "目前無資料。";
+          return;
+        }
+
+        container.innerHTML = "";
+        data.forEach(item => {
+          const div = document.createElement("div");
+          div.className = "unit-info";
+          div.innerHTML = `
+            <div><strong>單位名稱：</strong>${item["單位名稱"]}</div>
+            <div><strong>群組ID：</strong>${item["群組id"] || "未填寫"}</div>
+            <div><strong>緊急聯絡人1：</strong>${item["緊急聯絡人1"] || "未填寫"}</div>
+            <div><strong>緊急聯絡人2：</strong>${item["緊急聯絡人2"] || "未填寫"}</div>
+          `;
+          container.appendChild(div);
+        });
+
+      } catch (e) {
+        console.error("載入資料發生錯誤", e);
+        container.textContent = "載入資料失敗，請稍後再試。";
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
