@@ -1,110 +1,7 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>群組ID編輯</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: #f9f9f9;
-      color: #333;
-    }
-    h1 {
-      margin-bottom: 25px;
-      font-size: 24px;
-      color: #2c3e50;
-    }
-    .radio-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      max-width: 700px;
-      margin-bottom: 20px;
-    }
-    .radio-item {
-      flex: 1 1 calc(33% - 12px);
-      background-color: #fff;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 10px;
-      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05);
-    }
-    label {
-      cursor: pointer;
-    }
-    input[type="radio"] {
-      margin-right: 5px;
-    }
-    #groupIdSection, #contactSection1, #contactSection2 {
-      margin-bottom: 20px;
-    }
-    #groupIdDisplay, #contactDisplay1, #contactDisplay2 {
-      background-color: #eee;
-      padding: 12px;
-      margin-top: 8px;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-    input[type="text"] {
-      padding: 10px;
-      width: 90%;
-      max-width: 400px;
-      margin-top: 5px;
-      font-size: 16px;
-      display: block;
-      margin-bottom: 15px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin-top: 10px;
-      background-color: #2ecc71;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      display: block;
-    }
-    button:hover {
-      background-color: #27ae60;
-    }
-    .warning {
-      color: red;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-    #debugInfo {
-      background:#fffae6;
-      color:#cc6600;
-      padding:10px;
-      margin-bottom:15px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      border: 1px solid #cc6600;
-      border-radius: 5px;
-    }
-    #userIdDisplay {
-      margin-bottom: 20px;
-      padding: 10px;
-      background-color: #e0f0ff;
-      color: #0066cc;
-      border-left: 5px solid #3399ff;
-      font-weight: bold;
-    }
-  </style>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-</head>
-<body>
-
-<!-- 除錯訊息區 -->
-<div id="debugInfo">初始化中...</div>
-
-<!-- 顯示 USER ID -->
-<div id="userIdDisplay"></div>
-
+<!-- edit-content.html -->
 <h1>群組ID編輯</h1>
+
+<div id="userIdDisplay"></div>
 
 <div id="radioContainer" class="radio-group">載入中...</div>
 
@@ -150,7 +47,6 @@
   let groupData = [];
   let selectedUnit = null;
 
-  const debugDiv = document.getElementById('debugInfo');
   const radioContainer = document.getElementById("radioContainer");
   const groupIdDisplay = document.getElementById("groupIdDisplay");
   const contactDisplay1 = document.getElementById("contactDisplay1");
@@ -177,9 +73,6 @@
     radioContainer.innerHTML = "";
     if (groupData.length === 0) {
       radioContainer.innerHTML = "您無權限修改任何單位。";
-      groupIdDisplay.textContent = "請選擇單位名稱";
-      contactDisplay1.textContent = "請選擇單位名稱";
-      contactDisplay2.textContent = "請選擇單位名稱";
       return;
     }
 
@@ -205,6 +98,30 @@
         warningDiv.style.display = "none";
       });
     });
+  }
+
+  async function renderEditPage(userId) {
+    liffUserId = userId;
+    userIdDisplay.innerText = `目前登入的 USERID：${liffUserId}`;
+
+    const authText = await fetch(sheetCSVUrl2).then(res => res.text());
+    const authData = parseCSV(authText);
+    const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
+
+    if (!userRow) {
+      radioContainer.innerHTML = "您無權限使用此功能";
+      groupIdDisplay.textContent = "-";
+      contactDisplay1.textContent = "-";
+      contactDisplay2.textContent = "-";
+      return;
+    }
+
+    userUnit = userRow["單位"];
+    const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
+    const allGroupData = parseCSV(groupText);
+    groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
+
+    renderRadios();
   }
 
   submitBtn.addEventListener("click", async () => {
@@ -247,68 +164,6 @@
     }
   });
 
-  async function initLIFFAndLoadData() {
-    try {
-      debugDiv.textContent = '開始初始化 LIFF...';
-
-      await liff.init({ liffId: "2007495371-LrlQvZ8Y" });
-      debugDiv.textContent += '\nLIFF 初始化成功';
-
-      if (!liff.isLoggedIn()) {
-        debugDiv.textContent += '\n尚未登入，執行登入';
-        liff.login();
-        return;
-      }
-
-      debugDiv.textContent += '\n已登入，取得用戶資料...';
-
-      const profile = await liff.getProfile();
-      liffUserId = profile.userId;
-
-      debugDiv.textContent += `\n取得 USER ID：${liffUserId}`;
-      userIdDisplay.innerText = `目前登入的 USERID：${liffUserId}`;
-
-      // 取得授權資料
-      const authText = await fetch(sheetCSVUrl2).then(res => res.text());
-      debugDiv.textContent += '\n已取得授權資料';
-
-      const authData = parseCSV(authText);
-      const userRow = authData.find(row => row["USERID"] === liffUserId && row["核准欄位"] === "v");
-
-      if (!userRow) {
-        radioContainer.innerHTML = "您無權限使用此功能";
-        debugDiv.textContent += '\n用戶無權限';
-        groupIdDisplay.textContent = "-";
-        contactDisplay1.textContent = "-";
-        contactDisplay2.textContent = "-";
-        return;
-      }
-
-      userUnit = userRow["單位"];
-      debugDiv.textContent += `\n用戶單位：${userUnit}`;
-
-      // 取得群組資料
-      const groupText = await fetch(sheetCSVUrl1).then(res => res.text());
-      debugDiv.textContent += '\n已取得群組資料';
-
-      const allGroupData = parseCSV(groupText);
-      groupData = allGroupData.filter(d => d["單位名稱"] === userUnit);
-
-      debugDiv.textContent += `\n符合條件的群組數：${groupData.length}`;
-
-      renderRadios();
-
-    } catch (e) {
-      console.error("初始化或資料載入錯誤", e);
-      debugDiv.textContent += `\n錯誤：${e.message}`;
-      radioContainer.innerHTML = "載入失敗，請重新整理。";
-      groupIdDisplay.textContent = "-";
-      contactDisplay1.textContent = "-";
-      contactDisplay2.textContent = "-";
-    }
-  }
-
-  window.addEventListener('load', initLIFFAndLoadData);
+  // 為 index.html 預備，外部可呼叫 renderEditPage(userId)
+  window.renderEditPage = renderEditPage;
 </script>
-</body>
-</html>
